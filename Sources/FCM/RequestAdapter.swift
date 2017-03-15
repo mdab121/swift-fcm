@@ -50,7 +50,7 @@ internal class RequestAdapterUrlSession: RequestAdapting {
 			queue.addOperation {
 				completion(data, (response as? HTTPURLResponse)?.statusCode, error)
 			}
-		}
+		}.resume()
 	}
 
 	private func geneareRequest(data: Data, headers: [String: String], url: URL) -> URLRequest {

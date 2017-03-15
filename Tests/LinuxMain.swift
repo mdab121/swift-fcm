@@ -3,4 +3,5 @@ import XCTest
 
 XCTMain([
      testCase(MessageSerializerTests.allTests),
+     testCase(FirebaseTests.allTests)
 ])

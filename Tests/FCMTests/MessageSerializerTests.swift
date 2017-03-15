@@ -6,7 +6,7 @@ import XCTest
 
 class MessageSerializerTests: XCTestCase {
 
-	var sut: FCM.MessageSerializer!
+	var sut: MessageSerializer!
 	let exampleToken = DeviceToken(rawValue: "example_token")
 	let exampleToken2 = DeviceToken(rawValue: "example_token_sdafegrfiefhaslifuharilfugdfisl")
 	let simplePayload = Payload(message: "Hello world")
@@ -16,7 +16,7 @@ class MessageSerializerTests: XCTestCase {
 
 	override func setUp() {
 		super.setUp()
-		sut = FCM.MessageSerializer()
+		sut = MessageSerializer()
 	}
 
 	override func tearDown() {

@@ -23,7 +23,7 @@ Do you want to write your awesome server in Swift? At some point, you'll probabl
 #### Swift Package Manager
 
 ```swift
-.Package(url: "https://github.com/mdab121/swift-fcm.git", majorVersion: 0, minor: 1)
+.Package(url: "https://github.com/mdab121/swift-fcm.git", majorVersion: 0, minor: 2)
 ```
 
 

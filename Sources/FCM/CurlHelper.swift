@@ -30,7 +30,11 @@ final internal class CurlHelper {
 		// Configure URL
 		let curlHeaders = generateHeaders(headers: headers)
 		curlHelperSetOptBool(curlHandle, CURLOPT_HEADER, CURL_TRUE)
-		curlHelperSetOptHeaders(curlHandle, curlHeaders)
+		//For version 0.3 of CCurl
+//		curlHelperSetOptHeaders(curlHandle, curlHeaders)
+		//For version 0.2 of CCurl
+		curlHelperSetOptList(curlHandle, CURLOPT_HTTPHEADER, curlHeaders)
+
 
 		// Configure payload
 		var postFieldsString = Data(bytes: bytes)
