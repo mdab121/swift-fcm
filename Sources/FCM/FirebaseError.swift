@@ -16,6 +16,7 @@ public enum FirebaseError: Error {
 
 	case invalidData
 	case unknown				//Unknown error
+	case networkError(message: String)
 
 	case other(error: Error)	//Some other error – for example no internet connection
 	case multiple(errors: [FirebaseError])	// Multiple nested errors
@@ -35,12 +36,26 @@ public enum FirebaseError: Error {
 
 	init?(multiple: [FirebaseError]) {
 		if multiple.isEmpty { return nil }
-		if multiple.count == 1 { self = multiple.first! }
-		self = .multiple(errors: multiple)
+		else if multiple.count == 1 { self = multiple.first! }
+		else { self = .multiple(errors: multiple) }
 	}
 
-	init?(statusCode: Int) {
+	init(error: Error) {
+		if let error = error as? FirebaseError {
+			self = error
+		} else {
+			self = .other(error: error)
+		}
+	}
+
+	init?(statusCode: Int?) {
+		guard let statusCode = statusCode else {
+			self = .unknown
+			return
+		}
 		switch statusCode {
+		case 200..<300:
+			return nil
 		case 400:
 			self = .invalidJson
 		case 401:
@@ -48,7 +63,7 @@ public enum FirebaseError: Error {
 		case 500...599:
 			self = .serverError
 		default:
-			return nil
+			self = .unknown
 		}
 	}
 }

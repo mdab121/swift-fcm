@@ -16,7 +16,7 @@ public struct FirebaseResponse {
 	// MARK: Internal and private methods
 
 	private enum ResponseKey: String {
-		case result = "result"
+		case result = "results"
 		case messageId = "message_id"
 		case error = "error"
 	}
@@ -26,11 +26,11 @@ public struct FirebaseResponse {
 		self.error = error
 	}
 
-	internal init(data: Data?, statusCode: Int, error: Error?) {
+	internal init(data: Data?, statusCode: Int?, error: Error?) {
 		if let error = error {
 			//Error – don't parse the data
 			self.success = false
-			self.error = .other(error: error)
+			self.error = FirebaseError(error: error)
 			return
 		}
 		guard statusCode == 200 else {

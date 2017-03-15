@@ -6,26 +6,34 @@ import Foundation
 /// This is the main class that you should be using to send notifications
 public class Firebase {
 
-	private lazy var urlSession: URLSession = {
-		let sessionConfiguration = URLSessionConfiguration.ephemeral
-		sessionConfiguration.urlCache = nil
-		sessionConfiguration.urlCredentialStorage = nil
-		return URLSession(configuration: sessionConfiguration)
-	}()
+	/// Set this to true if you want your requests to be performed in the background.
+	/// Defaults to false, since I don't think it's been tested enough
+	/// Please do not change this after pushing notifications
+	internal var backgroundMode: Bool = false
 
-	private let serverKey: ServerKey
+	/// The server key
+	internal let serverKey: ServerKey
 
 	private let serializer: MessageSerializer = MessageSerializer()
 	private let pushUrl: URL = URL(string: "https://fcm.googleapis.com/fcm/send")!
+	private let requestAdapter: RequestAdapting = RequestAdapterCurl()
+	private lazy var backgroundQueue = OperationQueue()
 
+	private var requestQueue: OperationQueue {
+		return backgroundMode ? backgroundQueue : (OperationQueue.current ?? OperationQueue.main)
+	}
 
 	/// Convenience initializer taking a path to a file where the key is stored.
 	///
 	/// - Parameter keyPath: Path to the Firebase Server Key
 	/// - Throws: Throws an error if file doesn't exist
 	public convenience init(keyPath: String) throws {
-		let serverKeyString = try String(contentsOfFile: keyPath).trimmingCharacters(in: .whitespacesAndNewlines)
-		self.init(serverKey: ServerKey(rawValue: serverKeyString))
+		let fileManager = FileManager()
+		guard let keyData = fileManager.contents(atPath: keyPath),
+			let keyString = String(data: keyData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+				throw FirebaseError.invalidServerKey
+		}
+		self.init(serverKey: ServerKey(rawValue: keyString))
 	}
 
 
@@ -46,35 +54,28 @@ public class Firebase {
 	///   - completion: completion closure
 	/// - Throws: Serialization error when the message could not be serialized
 	public func send(message: Message, to deviceToken: DeviceToken, completion: @escaping (FirebaseResponse) -> Void) throws {
-		let request = try generateRequest(message: message, deviceToken: deviceToken)
-		let callQueue = OperationQueue.current ?? OperationQueue.main
-		urlSession.dataTask(with: request) { (data, response, error) in
-			// Do the parsing on the background queue
-			let firebaseResponse = FirebaseResponse(data: data, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, error: error)
-			callQueue.addOperation {
-				//call completion on the captured caller queue
-				completion(firebaseResponse)
+
+		let requestBytes: [UInt8] = try serializer.serialize(message: message, device: deviceToken)
+		let requestData = Data(requestBytes)
+		let requestHeaders = generateHeaders()
+		let url = pushUrl
+		let completionQueue = OperationQueue.current ?? OperationQueue.main
+		let requestAdapter = self.requestAdapter
+
+		requestQueue.addOperation {
+			do {
+				try requestAdapter.send(data: requestData, headers: requestHeaders, url: url) { (data, statusCode, error) in
+					let response = FirebaseResponse(data: data, statusCode: statusCode, error: error)
+					completionQueue.addOperation { completion(response) }
+				}
+			} catch {
+				let response = FirebaseResponse(data: nil, statusCode: nil, error: error)
+				completionQueue.addOperation { completion(response) }
 			}
-		}.resume()
+		}
 	}
 
 	// MARK: Private methods
-
-	private func generateRequest(message: Message, deviceToken: DeviceToken) throws -> URLRequest {
-		var request = generateEmptyRequest()
-		request.httpBody = Data(bytes: try serializer.serialize(message: message, device: deviceToken))
-		return request
-	}
-
-	private func generateEmptyRequest() -> URLRequest {
-		var request = URLRequest(url: pushUrl)
-		request.httpMethod = "POST"
-		for (header, value) in generateHeaders() {
-			request.addValue(value, forHTTPHeaderField: header)
-		}
-		return request
-	}
-
 	private func generateHeaders() -> [String: String] {
 		return [
 			"Content-Type": "application/json",
